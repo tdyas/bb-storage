@@ -47,12 +47,12 @@ func (b *casChunkReaderBuffer) ToByteSlice(maximumSizeBytes int) ([]byte, error)
 	return toByteSliceViaChunkReader(b.toValidatedChunkReader(), b.digest, maximumSizeBytes)
 }
 
-func (b *casChunkReaderBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b *casChunkReaderBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	if err := validateReaderOffset(b.digest.GetSizeBytes(), off); err != nil {
 		b.Discard()
 		return newErrorChunkReader(err)
 	}
-	return newNormalizingChunkReader(newOffsetChunkReader(b.toValidatedChunkReader(), off), maximumChunkSizeBytes)
+	return newNormalizingChunkReader(newOffsetChunkReader(b.toValidatedChunkReader(), off), chunkPolicy)
 }
 
 func (b *casChunkReaderBuffer) ToReader() io.ReadCloser {
@@ -78,8 +78,8 @@ func (b *casChunkReaderBuffer) applyErrorHandler(errorHandler ErrorHandler) (Buf
 	return newCASErrorHandlingBuffer(b, errorHandler, b.digest, b.repairStrategy), false
 }
 
-func (b *casChunkReaderBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return newNormalizingChunkReader(newOffsetChunkReader(b.r, off), maximumChunkSizeBytes)
+func (b *casChunkReaderBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return newNormalizingChunkReader(newOffsetChunkReader(b.r, off), chunkPolicy)
 }
 
 func (b *casChunkReaderBuffer) toUnvalidatedReader(off int64) io.ReadCloser {

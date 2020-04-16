@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"io"
+	"io/ioutil"
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	"github.com/buildbarn/bb-storage/pkg/digest"
@@ -78,6 +79,16 @@ func toByteSliceViaChunkReader(r ChunkReader, digest digest.Digest, maximumSizeB
 		}
 		data = append(data, chunk...)
 	}
+}
+
+func toByteSliceViaReader(r io.ReadCloser, digest digest.Digest, maximumSizeBytes int) ([]byte, error) {
+	defer r.Close()
+
+	expectedSizeBytes := digest.GetSizeBytes()
+	if expectedSizeBytes > int64(maximumSizeBytes) {
+		return nil, status.Errorf(codes.InvalidArgument, "Buffer is %d bytes in size, while a maximum of %d bytes is permitted", expectedSizeBytes, maximumSizeBytes)
+	}
+	return ioutil.ReadAll(r)
 }
 
 func cloneCopyViaByteSlice(b Buffer, maximumSizeBytes int) (Buffer, Buffer) {

@@ -51,7 +51,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 			buffer.NewACBufferFromActionResult(
 				&remoteexecution.ActionResult{
 					StdoutDigest: &remoteexecution.Digest{
-						Hash:      "this is a malformed hash",
+						HashOther: "this is a malformed hash",
 						SizeBytes: 12,
 					},
 				},
@@ -70,13 +70,13 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 						{
 							Path: "bazel-out/foo.o",
 							Digest: &remoteexecution.Digest{
-								Hash:      "8b1a9953c4611296a827abf8c47804d7",
+								HashOther: "8b1a9953c4611296a827abf8c47804d7",
 								SizeBytes: 5,
 							},
 						},
 					},
 					StderrDigest: &remoteexecution.Digest{
-						Hash:      "6fc422233a40a75a1f028e11c3cd1140",
+						HashOther: "6fc422233a40a75a1f028e11c3cd1140",
 						SizeBytes: 7,
 					},
 				},
@@ -104,7 +104,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 			buffer.NewACBufferFromActionResult(
 				&remoteexecution.ActionResult{
 					StderrDigest: &remoteexecution.Digest{
-						Hash:      "6fc422233a40a75a1f028e11c3cd1140",
+						HashOther: "6fc422233a40a75a1f028e11c3cd1140",
 						SizeBytes: 7,
 					},
 				},
@@ -130,7 +130,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 						{
 							Path: "bazel-out/foo",
 							TreeDigest: &remoteexecution.Digest{
-								Hash:      "8b1a9953c4611296a827abf8c47804d7",
+								HashOther: "8b1a9953c4611296a827abf8c47804d7",
 								SizeBytes: 5,
 							},
 						},
@@ -158,14 +158,14 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 				{
 					Path: "bazel-out/foo.o",
 					Digest: &remoteexecution.Digest{
-						Hash:      "38837949e2518a6e8a912ffb29942788",
+						HashOther: "38837949e2518a6e8a912ffb29942788",
 						SizeBytes: 10,
 					},
 				},
 				{
 					Path: "bazel-out/foo.d",
 					Digest: &remoteexecution.Digest{
-						Hash:      "ebbbb099e9d2f7892d97ab3640ae8283",
+						HashOther: "ebbbb099e9d2f7892d97ab3640ae8283",
 						SizeBytes: 9,
 					},
 				},
@@ -174,17 +174,17 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 				{
 					Path: "bazel-out/foo",
 					TreeDigest: &remoteexecution.Digest{
-						Hash:      "8b1a9953c4611296a827abf8c47804d7",
+						HashOther: "8b1a9953c4611296a827abf8c47804d7",
 						SizeBytes: 5,
 					},
 				},
 			},
 			StdoutDigest: &remoteexecution.Digest{
-				Hash:      "136de6de72514772b9302d4776e5c3d2",
+				HashOther: "136de6de72514772b9302d4776e5c3d2",
 				SizeBytes: 4,
 			},
 			StderrDigest: &remoteexecution.Digest{
-				Hash:      "41d7247285b686496aa91b56b4c48395",
+				HashOther: "41d7247285b686496aa91b56b4c48395",
 				SizeBytes: 11,
 			},
 		}
@@ -204,7 +204,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 				Directories: []*remoteexecution.DirectoryNode{
 					{
 						Digest: &remoteexecution.Digest{
-							Hash:      "7a3435d88e819881cbe9d430a340d157",
+							HashOther: "7a3435d88e819881cbe9d430a340d157",
 							SizeBytes: 10,
 						},
 					},
@@ -212,7 +212,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 				Files: []*remoteexecution.FileNode{
 					{
 						Digest: &remoteexecution.Digest{
-							Hash:      "eda14e187a768b38eda999457c9cca1e",
+							HashOther: "eda14e187a768b38eda999457c9cca1e",
 							SizeBytes: 6,
 						},
 					},
@@ -223,7 +223,7 @@ func TestCompletenessCheckingBlobAccess(t *testing.T) {
 					Files: []*remoteexecution.FileNode{
 						{
 							Digest: &remoteexecution.Digest{
-								Hash:      "6c396013ff0ebff6a2a96cdc20a4ba4c",
+								HashOther: "6c396013ff0ebff6a2a96cdc20a4ba4c",
 								SizeBytes: 5,
 							},
 						},

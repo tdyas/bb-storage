@@ -56,15 +56,15 @@ func (b *casErrorHandlingBuffer) tryRepeatedly(f func(Buffer) error) error {
 	}
 }
 
-func (b *casErrorHandlingBuffer) toValidatedChunkReader(maximumChunkSizeBytes int) ChunkReader {
-	return newCASValidatingChunkReader(b.toUnvalidatedChunkReader(0, maximumChunkSizeBytes), b.digest, b.repairStrategy)
+func (b *casErrorHandlingBuffer) toValidatedChunkReader(chunkPolicy ChunkPolicy) ChunkReader {
+	return newCASValidatingChunkReader(b.toUnvalidatedChunkReader(0, chunkPolicy), b.digest, b.repairStrategy)
 }
 
 func (b *casErrorHandlingBuffer) IntoWriter(w io.Writer) error {
 	// This operation cannot use tryRepeatedly(), as individual
 	// retries may write parts to the output stream. Copy into the
 	// output stream using a retrying ChunkReader.
-	return intoWriterViaChunkReader(b.toValidatedChunkReader(64*1024), w)
+	return intoWriterViaChunkReader(b.toValidatedChunkReader(chunkSizeDontCare), w)
 }
 
 func (b *casErrorHandlingBuffer) ReadAt(p []byte, off int64) (n int, translatedErr error) {
@@ -94,12 +94,12 @@ func (b *casErrorHandlingBuffer) ToByteSlice(maximumSizeBytes int) (data []byte,
 	return
 }
 
-func (b *casErrorHandlingBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b *casErrorHandlingBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	if err := validateReaderOffset(b.digest.GetSizeBytes(), off); err != nil {
 		b.Discard()
 		return newErrorChunkReader(err)
 	}
-	return newOffsetChunkReader(b.toValidatedChunkReader(maximumChunkSizeBytes), off)
+	return newOffsetChunkReader(b.toValidatedChunkReader(chunkPolicy), off)
 }
 
 func (b *casErrorHandlingBuffer) ToReader() io.ReadCloser {
@@ -126,8 +126,8 @@ func (b *casErrorHandlingBuffer) applyErrorHandler(errorHandler ErrorHandler) (B
 	return newCASErrorHandlingBuffer(b, errorHandler, b.digest, b.repairStrategy), false
 }
 
-func (b *casErrorHandlingBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return newErrorHandlingChunkReader(b.base, b.errorHandler, off, maximumChunkSizeBytes)
+func (b *casErrorHandlingBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return newErrorHandlingChunkReader(b.base, b.errorHandler, off, chunkPolicy)
 }
 
 func (b *casErrorHandlingBuffer) toUnvalidatedReader(off int64) io.ReadCloser {

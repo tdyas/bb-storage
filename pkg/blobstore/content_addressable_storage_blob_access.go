@@ -73,7 +73,7 @@ func (ba *contentAddressableStorageBlobAccess) Get(ctx context.Context, digest d
 }
 
 func (ba *contentAddressableStorageBlobAccess) Put(ctx context.Context, digest digest.Digest, b buffer.Buffer) error {
-	r := b.ToChunkReader(0, ba.readChunkSize)
+	r := b.ToChunkReader(0, buffer.ChunkSizeAtMost(ba.readChunkSize))
 	defer r.Close()
 
 	client, err := ba.byteStreamClient.Write(ctx)

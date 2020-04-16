@@ -48,7 +48,7 @@ type Buffer interface {
 	// Read the contents of the buffer, starting at a given offset,
 	// as a stream of byte slices. Normally used by the Content
 	// Addressable Storage.
-	ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader
+	ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader
 	// Obtain a reader that returns the entire contents of the
 	// buffer.
 	ToReader() io.ReadCloser
@@ -88,6 +88,6 @@ type Buffer interface {
 	// concatenated. Checksum validation needs to happen across
 	// those parts, which is why the individual parts may be read
 	// with checksum validation disabled.
-	toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader
+	toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader
 	toUnvalidatedReader(off int64) io.ReadCloser
 }

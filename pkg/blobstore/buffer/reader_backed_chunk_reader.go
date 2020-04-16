@@ -12,10 +12,10 @@ type readerBackedChunkReader struct {
 // newReaderBackedChunkReader creates a ChunkReader based on an existing
 // ReadCloser. It attempts to read data from the ReadCloser, turning it
 // into chunks of the maximum permitted size.
-func newReaderBackedChunkReader(r io.ReadCloser, maximumChunkSizeBytes int) ChunkReader {
+func newReaderBackedChunkReader(r io.ReadCloser, chunkPolicy ChunkPolicy) ChunkReader {
 	return &readerBackedChunkReader{
 		r:                     r,
-		maximumChunkSizeBytes: maximumChunkSizeBytes,
+		maximumChunkSizeBytes: chunkPolicy.defaultSizeBytes,
 	}
 }
 

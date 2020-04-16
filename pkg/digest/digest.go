@@ -52,6 +52,7 @@ var (
 	// supported by digest.Digest, using the enumeration values that
 	// are part of the Remote Execution protocol.
 	SupportedDigestFunctions = []remoteexecution.DigestFunction_Value{
+		remoteexecution.DigestFunction_BLAKE3ZCC,
 		remoteexecution.DigestFunction_MD5,
 		remoteexecution.DigestFunction_SHA1,
 		remoteexecution.DigestFunction_SHA256,
@@ -84,8 +85,59 @@ func (d Digest) unpack() (int, int64, int) {
 // object size. The instance returned by this function is guaranteed to
 // be non-degenerate.
 func NewDigest(instance string, hash string, sizeBytes int64) (Digest, error) {
+	if strings.HasPrefix(hash, "B3Z:") {
+		return newDigestBLAKE3ZCC(instance, hash[4:], sizeBytes)
+	}
+	if strings.HasPrefix(hash, "B3ZM:") {
+		return newDigestBLAKE3ZCCManifest(instance, hash[5:], sizeBytes)
+	}
+	return newDigestOther(instance, hash, sizeBytes)
+}
+
+func newDigestUnchecked(instance string, hash string, sizeBytes int64) Digest {
+	return Digest{
+		value: fmt.Sprintf("%s-%d-%s", hash, sizeBytes, instance),
+	}
+}
+
+func newDigestBLAKE3ZCC(instance string, hash string, sizeBytes int64) (Digest, error) {
 	// TODO(edsch): Validate the instance name. Maybe have a
 	// restrictive character set? What about length?
+
+	// Validate the size.
+	if sizeBytes < 0 {
+		return BadDigest, status.Errorf(codes.InvalidArgument, "Invalid digest size: %d bytes", sizeBytes)
+	}
+
+	// TODO: Validate hash!
+	return Digest{
+		value: fmt.Sprintf("B3Z:%s-%d-%s", hash, sizeBytes, instance),
+	}, nil
+}
+
+func newDigestBLAKE3ZCCManifest(instance string, hash string, sizeBytes int64) (Digest, error) {
+	// TODO(edsch): Validate the instance name. Maybe have a
+	// restrictive character set? What about length?
+
+	// Validate the size.
+	if sizeBytes < 0 {
+		return BadDigest, status.Errorf(codes.InvalidArgument, "Invalid digest size: %d bytes", sizeBytes)
+	}
+
+	// TODO: Validate hash!
+	return Digest{
+		value: fmt.Sprintf("B3ZM:%s-%d-%s", hash, sizeBytes, instance),
+	}, nil
+}
+
+func newDigestOther(instance string, hash string, sizeBytes int64) (Digest, error) {
+	// TODO(edsch): Validate the instance name. Maybe have a
+	// restrictive character set? What about length?
+
+	// Validate the size.
+	if sizeBytes < 0 {
+		return BadDigest, status.Errorf(codes.InvalidArgument, "Invalid digest size: %d bytes", sizeBytes)
+	}
 
 	// Validate the hash.
 	if l := len(hash); l != md5.Size*2 && l != sha1.Size*2 &&
@@ -97,21 +149,7 @@ func NewDigest(instance string, hash string, sizeBytes int64) (Digest, error) {
 			return BadDigest, status.Errorf(codes.InvalidArgument, "Non-hexadecimal character in digest hash: %#U", c)
 		}
 	}
-
-	// Validate the size.
-	if sizeBytes < 0 {
-		return BadDigest, status.Errorf(codes.InvalidArgument, "Invalid digest size: %d bytes", sizeBytes)
-	}
-
 	return newDigestUnchecked(instance, hash, sizeBytes), nil
-}
-
-// newDigestUnchecked constructs a Digest object from an instance name,
-// hash and object size without validating its contents.
-func newDigestUnchecked(instance string, hash string, sizeBytes int64) Digest {
-	return Digest{
-		value: fmt.Sprintf("%s-%d-%s", hash, sizeBytes, instance),
-	}
 }
 
 // MustNewDigest constructs a Digest similar to NewDigest, but never
@@ -132,7 +170,14 @@ func NewDigestFromPartialDigest(instance string, partialDigest *remoteexecution.
 	if partialDigest == nil {
 		return BadDigest, status.Error(codes.InvalidArgument, "No digest provided")
 	}
-	return NewDigest(instance, partialDigest.Hash, partialDigest.SizeBytes)
+
+	if len(partialDigest.HashBlake3Zcc) > 0 {
+		return newDigestBLAKE3ZCC(instance, hex.EncodeToString(partialDigest.HashBlake3Zcc), partialDigest.SizeBytes)
+	}
+	if len(partialDigest.HashBlake3ZccManifest) > 0 {
+		return newDigestBLAKE3ZCCManifest(instance, hex.EncodeToString(partialDigest.HashBlake3ZccManifest), partialDigest.SizeBytes)
+	}
+	return newDigestOther(instance, partialDigest.HashOther, partialDigest.SizeBytes)
 }
 
 // NewDigestFromBytestreamPath creates a Digest from a string having one
@@ -174,8 +219,29 @@ func (d Digest) NewDerivedDigest(partialDigest *remoteexecution.Digest) (Digest,
 // the client.
 func (d Digest) GetPartialDigest() *remoteexecution.Digest {
 	hashEnd, sizeBytes, _ := d.unpack()
+	hash := d.value[:hashEnd]
+	if strings.HasPrefix(hash, "B3Z:") {
+		hashBytes, err := hex.DecodeString(hash[4:])
+		if err != nil {
+			panic("Failed to decode malformed BLAKE3ZCC hash")
+		}
+		return &remoteexecution.Digest{
+			HashBlake3Zcc: hashBytes,
+			SizeBytes:     sizeBytes,
+		}
+	}
+	if strings.HasPrefix(hash, "B3ZM:") {
+		hashBytes, err := hex.DecodeString(hash[5:])
+		if err != nil {
+			panic("Failed to decode malformed BLAKE3ZCC manifest hash")
+		}
+		return &remoteexecution.Digest{
+			HashBlake3ZccManifest: hashBytes,
+			SizeBytes:             sizeBytes,
+		}
+	}
 	return &remoteexecution.Digest{
-		Hash:      d.value[:hashEnd],
+		HashOther: hash,
 		SizeBytes: sizeBytes,
 	}
 }
@@ -188,11 +254,18 @@ func (d Digest) GetInstance() string {
 
 // GetHashBytes returns the hash of the object as a slice of bytes.
 func (d Digest) GetHashBytes() []byte {
-	hash, err := hex.DecodeString(d.GetHashString())
+	hashString := d.GetHashString()
+	if strings.HasPrefix(hashString, "B3Z:") {
+		hashString = hashString[4:]
+	}
+	if strings.HasPrefix(hashString, "B3ZM:") {
+		hashString = hashString[5:]
+	}
+	hashBytes, err := hex.DecodeString(hashString)
 	if err != nil {
 		panic("Failed to decode digest hash, even though its contents have already been validated")
 	}
-	return hash
+	return hashBytes
 }
 
 // GetHashString returns the hash of the object as a string.
@@ -239,13 +312,65 @@ func (d Digest) String() string {
 	return d.GetKey(KeyWithInstance)
 }
 
+func convertSizeToBlockCount(blobSizeBytes int64, blockSizeBytes int64) int64 {
+	return int64((uint64(blobSizeBytes) + uint64(blockSizeBytes) - 1) / uint64(blockSizeBytes))
+}
+
+// ToManifest converts a digest object to the digest of its manifest
+// object counterpart. Summaries allow large objects to be decomposed
+// into a series of concatenate blocks. Manifest objects are stored in
+// the CAS as a sequence of digests of their chunks.
+//
+// It is only possible to create manifest objects when VSO hashing is
+// used. This implementation only allows the creation of manifest objects
+// for blobs larger than a single block (2 MiB), as storing summaries
+// for single block objects would be wasteful.
+//
+// In addition to returning the digest of the manifest object, this
+// function returns a ManifestParser that may be used to extract digests
+// from existing summaries or insert digests into new summaries.
+func (d Digest) ToManifest(blockSizeBytes int64) (Digest, ManifestParser, bool) {
+	if !strings.HasPrefix(d.value, "B3Z:") {
+		return BadDigest, nil, false
+	}
+
+	// TODO: Check that blockSizeBytes is valid!
+
+	hashEnd, sizeBytes, sizeBytesEnd := d.unpack()
+	if sizeBytes <= blockSizeBytes {
+		return BadDigest, nil, false
+	}
+
+	manifestSizeBytes := convertSizeToBlockCount(sizeBytes, blockSizeBytes) * blake3zccParentNodeSizeBytes
+	if lastBlockSizeBytes := sizeBytes % blockSizeBytes; lastBlockSizeBytes > 0 && lastBlockSizeBytes <= 1024 {
+		manifestSizeBytes += blake3zccChunkNodeSizeBytes - blake3zccParentNodeSizeBytes
+	}
+	hash := d.value[4:hashEnd]
+	instance := d.value[sizeBytesEnd+1:]
+	return Digest{
+			value: fmt.Sprintf(
+				"B3ZM:%s-%d-%s",
+				hash,
+				manifestSizeBytes,
+				instance),
+		},
+		newBLAKE3ZCCManifestParser(instance, sizeBytes, blockSizeBytes, len(hash)/2),
+		true
+}
+
 // NewHasher creates a standard hash.Hash object that may be used to
 // compute a checksum of data. The hash.Hash object uses the same
 // algorithm as the one that was used to create the digest, making it
 // possible to validate data against a digest.
 func (d Digest) NewHasher() hash.Hash {
-	hashEnd, _, _ := d.unpack()
-	switch hashEnd {
+	hash := d.GetHashString()
+	if strings.HasPrefix(hash, "B3Z:") {
+		return newBLAKE3ZCCBlobHasher(len(hash[4:]) / 2)
+	}
+	if strings.HasPrefix(hash, "B3ZM:") {
+		return newBLAKE3ZCCManifestHasher(len(hash[5:]) / 2)
+	}
+	switch len(hash) {
 	case md5.Size * 2:
 		return md5.New()
 	case sha1.Size * 2:

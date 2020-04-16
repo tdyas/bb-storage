@@ -14,6 +14,7 @@ def bb_storage_go_dependencies():
         importpath = "github.com/bazelbuild/remote-apis",
         patches = [
             "@com_github_buildbarn_bb_storage//:patches/com_github_bazelbuild_remote_apis/auxiliary_metadata.diff",
+            "@com_github_buildbarn_bb_storage//:patches/com_github_bazelbuild_remote_apis/blake3.diff",
             "@com_github_buildbarn_bb_storage//:patches/com_github_bazelbuild_remote_apis/golang.diff",
         ],
         sha256 = "79204ed1fa385c03b5235f65b25ced6ac51cf4b00e45e1157beca6a28bdb8043",

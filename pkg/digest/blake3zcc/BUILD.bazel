@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "blake3.go",
+        "chaining_value_stack.go",
+        "chunk_parser.go",
+        "node.go",
+    ],
+    importpath = "github.com/buildbarn/bb-storage/pkg/digest/blake3zcc",
+    visibility = ["//visibility:public"],
+)

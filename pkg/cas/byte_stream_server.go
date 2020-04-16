@@ -62,7 +62,7 @@ func (s *byteStreamServer) Read(in *bytestream.ReadRequest, out bytestream.ByteS
 		return err
 	}
 
-	r := s.blobAccess.Get(out.Context(), digest).ToChunkReader(in.ReadOffset, s.readChunkSize)
+	r := s.blobAccess.Get(out.Context(), digest).ToChunkReader(in.ReadOffset, buffer.ChunkSizeAtMost(s.readChunkSize))
 	defer r.Close()
 
 	for {

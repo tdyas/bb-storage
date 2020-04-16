@@ -154,7 +154,7 @@ func TestNewACBufferFromByteSliceToChunkReader(t *testing.T) {
 		exampleActionResultBytes,
 		buffer.Reparable(exampleDigest, repairFunc.Call)).ToChunkReader(
 		/* offset = */ 0,
-		/* chunk size = */ 10000)
+		buffer.ChunkSizeAtMost(10000))
 
 	data, err := r.Read()
 	require.NoError(t, err)

@@ -8,20 +8,15 @@ import (
 	"github.com/buildbarn/bb-storage/pkg/digest"
 )
 
-const (
-	defaultChunkSizeBytes = 64 * 1024
-)
-
 type casClonedBuffer struct {
 	base           Buffer
 	digest         digest.Digest
 	repairStrategy RepairStrategy
 
-	lock                  sync.Mutex
-	consumersRemaining    uint
-	consumersWaiting      []chan ChunkReader
-	needsValidation       bool
-	maximumChunkSizeBytes int
+	lock               sync.Mutex
+	consumersRemaining uint
+	consumersWaiting   []chan ChunkReader
+	needsValidation    bool
 }
 
 // newCASClonedBuffer creates a decorator for CAS-backed buffer objects
@@ -34,8 +29,7 @@ func newCASClonedBuffer(base Buffer, digest digest.Digest, repairStrategy Repair
 		digest:         digest,
 		repairStrategy: repairStrategy,
 
-		consumersRemaining:    1,
-		maximumChunkSizeBytes: -1,
+		consumersRemaining: 1,
 	}
 }
 
@@ -43,7 +37,7 @@ func (b *casClonedBuffer) GetSizeBytes() (int64, error) {
 	return b.digest.GetSizeBytes(), nil
 }
 
-func (b *casClonedBuffer) toChunkReader(needsValidation bool, maximumChunkSizeBytes int) ChunkReader {
+func (b *casClonedBuffer) toChunkReader(needsValidation bool, chunkPolicy ChunkPolicy) ChunkReader {
 	b.lock.Lock()
 	if b.consumersRemaining == 0 {
 		panic("Attempted to obtain a chunk reader for a buffer that is already fully consumed")
@@ -52,9 +46,6 @@ func (b *casClonedBuffer) toChunkReader(needsValidation bool, maximumChunkSizeBy
 
 	// Provide constraints that this consumer desires.
 	b.needsValidation = b.needsValidation || needsValidation
-	if b.maximumChunkSizeBytes < 0 || b.maximumChunkSizeBytes > maximumChunkSizeBytes {
-		b.maximumChunkSizeBytes = maximumChunkSizeBytes
-	}
 
 	// Create the underlying ChunkReader in case all consumers have
 	// supplied their constraints.
@@ -63,9 +54,9 @@ func (b *casClonedBuffer) toChunkReader(needsValidation bool, maximumChunkSizeBy
 		// validation, we use checksum validation for everyone.
 		var r ChunkReader
 		if b.needsValidation {
-			r = b.base.ToChunkReader(0, b.maximumChunkSizeBytes)
+			r = b.base.ToChunkReader(0, chunkSizeDontCare)
 		} else {
-			r = b.base.toUnvalidatedChunkReader(0, b.maximumChunkSizeBytes)
+			r = b.base.toUnvalidatedChunkReader(0, chunkSizeDontCare)
 		}
 
 		// Give all consumers their own ChunkReader.
@@ -74,7 +65,7 @@ func (b *casClonedBuffer) toChunkReader(needsValidation bool, maximumChunkSizeBy
 			c <- rMultiplexed
 		}
 		b.lock.Unlock()
-		return rMultiplexed
+		return newNormalizingChunkReader(rMultiplexed, chunkPolicy)
 	}
 
 	// There are other consumers that still have to supply their
@@ -83,15 +74,15 @@ func (b *casClonedBuffer) toChunkReader(needsValidation bool, maximumChunkSizeBy
 	c := make(chan ChunkReader, 1)
 	b.consumersWaiting = append(b.consumersWaiting, c)
 	b.lock.Unlock()
-	return <-c
+	return newNormalizingChunkReader(<-c, chunkPolicy)
 }
 
 func (b *casClonedBuffer) IntoWriter(w io.Writer) error {
-	return intoWriterViaChunkReader(b.toChunkReader(true, defaultChunkSizeBytes), w)
+	return intoWriterViaChunkReader(b.toChunkReader(true, chunkSizeDontCare), w)
 }
 
 func (b *casClonedBuffer) ReadAt(p []byte, off int64) (int, error) {
-	return readAtViaChunkReader(b.toChunkReader(true, defaultChunkSizeBytes), p, off)
+	return readAtViaChunkReader(b.toChunkReader(true, chunkSizeDontCare), p, off)
 }
 
 func (b *casClonedBuffer) ToActionResult(maximumSizeBytes int) (*remoteexecution.ActionResult, error) {
@@ -99,15 +90,15 @@ func (b *casClonedBuffer) ToActionResult(maximumSizeBytes int) (*remoteexecution
 }
 
 func (b *casClonedBuffer) ToByteSlice(maximumSizeBytes int) ([]byte, error) {
-	return toByteSliceViaChunkReader(b.toChunkReader(true, defaultChunkSizeBytes), b.digest, maximumSizeBytes)
+	return toByteSliceViaChunkReader(b.toChunkReader(true, chunkSizeDontCare), b.digest, maximumSizeBytes)
 }
 
-func (b *casClonedBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return newOffsetChunkReader(b.toChunkReader(true, maximumChunkSizeBytes), off)
+func (b *casClonedBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return newOffsetChunkReader(b.toChunkReader(true, chunkPolicy), off)
 }
 
 func (b *casClonedBuffer) ToReader() io.ReadCloser {
-	return newChunkReaderBackedReader(b.toChunkReader(true, defaultChunkSizeBytes))
+	return newChunkReaderBackedReader(b.toChunkReader(true, chunkSizeDontCare))
 }
 
 func (b *casClonedBuffer) CloneCopy(maximumSizeBytes int) (Buffer, Buffer) {
@@ -126,7 +117,7 @@ func (b *casClonedBuffer) CloneStream() (Buffer, Buffer) {
 }
 
 func (b *casClonedBuffer) Discard() {
-	b.toChunkReader(false, defaultChunkSizeBytes).Close()
+	b.toChunkReader(false, chunkSizeDontCare).Close()
 }
 
 func (b *casClonedBuffer) applyErrorHandler(errorHandler ErrorHandler) (replacement Buffer, shouldRetry bool) {
@@ -136,10 +127,10 @@ func (b *casClonedBuffer) applyErrorHandler(errorHandler ErrorHandler) (replacem
 	return newCASErrorHandlingBuffer(b, errorHandler, b.digest, b.repairStrategy), false
 }
 
-func (b *casClonedBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return newOffsetChunkReader(b.toChunkReader(false, maximumChunkSizeBytes), off)
+func (b *casClonedBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return newOffsetChunkReader(b.toChunkReader(false, chunkPolicy), off)
 }
 
 func (b *casClonedBuffer) toUnvalidatedReader(off int64) io.ReadCloser {
-	return newChunkReaderBackedReader(b.toUnvalidatedChunkReader(off, defaultChunkSizeBytes))
+	return newChunkReaderBackedReader(b.toUnvalidatedChunkReader(off, chunkSizeDontCare))
 }

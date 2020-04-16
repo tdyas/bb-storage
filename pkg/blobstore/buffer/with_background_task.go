@@ -106,8 +106,8 @@ func (b *bufferWithBackgroundTask) ToByteSlice(maximumSizeBytes int) ([]byte, er
 	return data, b.task.err
 }
 
-func (b *bufferWithBackgroundTask) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return b.decorateChunkReader(b.base.ToChunkReader(off, maximumChunkSizeBytes))
+func (b *bufferWithBackgroundTask) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return b.decorateChunkReader(b.base.ToChunkReader(off, chunkPolicy))
 }
 
 func (b *bufferWithBackgroundTask) ToReader() io.ReadCloser {
@@ -134,8 +134,8 @@ func (b *bufferWithBackgroundTask) applyErrorHandler(errorHandler ErrorHandler) 
 	return b.decorateBuffer(replacement), shouldRetry
 }
 
-func (b *bufferWithBackgroundTask) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return b.decorateChunkReader(b.base.toUnvalidatedChunkReader(off, maximumChunkSizeBytes))
+func (b *bufferWithBackgroundTask) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return b.decorateChunkReader(b.base.toUnvalidatedChunkReader(off, chunkPolicy))
 }
 
 func (b *bufferWithBackgroundTask) toUnvalidatedReader(off int64) io.ReadCloser {

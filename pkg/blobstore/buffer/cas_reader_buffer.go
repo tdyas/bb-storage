@@ -6,9 +6,6 @@ import (
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	"github.com/buildbarn/bb-storage/pkg/digest"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type casReaderBuffer struct {
@@ -32,12 +29,8 @@ func (b *casReaderBuffer) GetSizeBytes() (int64, error) {
 	return b.digest.GetSizeBytes(), nil
 }
 
-func (b *casReaderBuffer) toValidatedReader() io.ReadCloser {
-	return newCASValidatingReader(b.r, b.digest, b.repairStrategy)
-}
-
 func (b *casReaderBuffer) IntoWriter(w io.Writer) error {
-	r := b.toValidatedReader()
+	r := b.ToReader()
 	defer r.Close()
 
 	_, err := io.Copy(w, r)
@@ -45,7 +38,7 @@ func (b *casReaderBuffer) IntoWriter(w io.Writer) error {
 }
 
 func (b *casReaderBuffer) ReadAt(p []byte, off int64) (int, error) {
-	r := b.toValidatedReader()
+	r := b.ToReader()
 	defer r.Close()
 
 	// Discard the part leading up to the correct offset.
@@ -74,32 +67,25 @@ func (b *casReaderBuffer) ToActionResult(maximumSizeBytes int) (*remoteexecution
 }
 
 func (b *casReaderBuffer) ToByteSlice(maximumSizeBytes int) ([]byte, error) {
-	r := b.toValidatedReader()
-	defer r.Close()
-
-	expectedSizeBytes := b.digest.GetSizeBytes()
-	if expectedSizeBytes > int64(maximumSizeBytes) {
-		return nil, status.Errorf(codes.InvalidArgument, "Buffer is %d bytes in size, while a maximum of %d bytes is permitted", expectedSizeBytes, maximumSizeBytes)
-	}
-	return ioutil.ReadAll(r)
+	return toByteSliceViaReader(b.ToReader(), b.digest, maximumSizeBytes)
 }
 
-func (b *casReaderBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b *casReaderBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	if err := validateReaderOffset(b.digest.GetSizeBytes(), off); err != nil {
-		b.r.Close()
+		b.Discard()
 		return newErrorChunkReader(err)
 	}
 
-	r := b.toValidatedReader()
+	r := b.ToReader()
 	if err := discardFromReader(r, off); err != nil {
 		r.Close()
 		return newErrorChunkReader(err)
 	}
-	return newReaderBackedChunkReader(r, maximumChunkSizeBytes)
+	return newReaderBackedChunkReader(r, chunkPolicy)
 }
 
 func (b *casReaderBuffer) ToReader() io.ReadCloser {
-	return b.toValidatedReader()
+	return newCASValidatingReader(b.r, b.digest, b.repairStrategy)
 }
 
 func (b *casReaderBuffer) CloneCopy(maximumSizeBytes int) (Buffer, Buffer) {
@@ -121,12 +107,12 @@ func (b *casReaderBuffer) applyErrorHandler(errorHandler ErrorHandler) (Buffer, 
 	return newCASErrorHandlingBuffer(b, errorHandler, b.digest, b.repairStrategy), false
 }
 
-func (b *casReaderBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b *casReaderBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	if err := discardFromReader(b.r, off); err != nil {
 		b.r.Close()
 		return newErrorChunkReader(err)
 	}
-	return newReaderBackedChunkReader(b.r, maximumChunkSizeBytes)
+	return newReaderBackedChunkReader(b.r, chunkPolicy)
 }
 
 func (b *casReaderBuffer) toUnvalidatedReader(off int64) io.ReadCloser {

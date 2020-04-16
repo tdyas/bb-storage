@@ -320,19 +320,18 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 		"3e25960a79dbc69b674cd4ec67a72c62",
 		11)
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("SuccessChunkSizeAtMost", func(t *testing.T) {
 		reader := ioutil.NopCloser(bytes.NewBufferString("Hello world"))
 		repairFunc := mock.NewMockRepairFunc(ctrl)
 
-		// The ChunkReader returned by ToChunkReader() should
-		// omit empty chunks and split up chunks that are too
-		// large.
+		// For reader-backed buffers, the chunk size provided to
+		// ToChunkReader should be used as the read size.
 		r := buffer.NewCASBufferFromReader(
 			helloDigest,
 			reader,
 			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
 			/* offset = */ 3,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 		chunk, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("lo"), chunk)
@@ -342,6 +341,34 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 		chunk, err = r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("or"), chunk)
+		chunk, err = r.Read()
+		require.NoError(t, err)
+		require.Equal(t, []byte("ld"), chunk)
+		_, err = r.Read()
+		require.Equal(t, io.EOF, err)
+		_, err = r.Read()
+		require.Equal(t, io.EOF, err)
+		r.Close()
+	})
+
+	t.Run("SuccessChunkSizeExactly", func(t *testing.T) {
+		reader := ioutil.NopCloser(bytes.NewBufferString("Hello world"))
+		repairFunc := mock.NewMockRepairFunc(ctrl)
+
+		// For reader-backed buffers, the chunk size provided to
+		// ToChunkReader should be used as the read size.
+		r := buffer.NewCASBufferFromReader(
+			helloDigest,
+			reader,
+			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
+			/* offset = */ 3,
+			buffer.ChunkSizeExactly(3))
+		chunk, err := r.Read()
+		require.NoError(t, err)
+		require.Equal(t, []byte("lo "), chunk)
+		chunk, err = r.Read()
+		require.NoError(t, err)
+		require.Equal(t, []byte("wor"), chunk)
 		chunk, err = r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("ld"), chunk)
@@ -363,7 +390,7 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 			reader,
 			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
 			/* offset = */ 11,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 		_, err := r.Read()
 		require.Equal(t, io.EOF, err)
 		r.Close()
@@ -382,7 +409,7 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 			reader,
 			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
 			/* offset = */ -1,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 		_, err := r.Read()
 		require.Equal(t, status.Error(codes.InvalidArgument, "Negative read offset: -1"), err)
 		r.Close()
@@ -401,7 +428,7 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 			reader,
 			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
 			/* offset = */ 12,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 		_, err := r.Read()
 		require.Equal(t, status.Error(codes.InvalidArgument, "Buffer is 11 bytes in size, while a read at offset 12 was requested"), err)
 		r.Close()
@@ -419,7 +446,7 @@ func TestNewCASBufferFromReaderToChunkReader(t *testing.T) {
 			reader,
 			buffer.Reparable(helloDigest, repairFunc.Call)).ToChunkReader(
 			/* offset = */ 0,
-			/* chunk size = */ 10)
+			buffer.ChunkSizeAtMost(10))
 		chunk, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("Hello worl"), chunk)

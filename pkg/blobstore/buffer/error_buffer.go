@@ -38,7 +38,7 @@ func (b errorBuffer) ToByteSlice(maximumSizeBytes int) ([]byte, error) {
 	return nil, b.err
 }
 
-func (b errorBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b errorBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	return newErrorChunkReader(b.err)
 }
 
@@ -68,7 +68,7 @@ func (b errorBuffer) applyErrorHandler(errorHandler ErrorHandler) (Buffer, bool)
 	return newB, true
 }
 
-func (b errorBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b errorBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	return newErrorChunkReader(b.err)
 }
 

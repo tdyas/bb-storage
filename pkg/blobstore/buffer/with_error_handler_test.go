@@ -325,7 +325,7 @@ func TestWithErrorHandlerOnCASBuffersToChunkReader(t *testing.T) {
 
 		r := buffer.WithErrorHandler(b1, errorHandler).ToChunkReader(
 			/* offset = */ 2,
-			/* chunk size = */ 10)
+			buffer.ChunkSizeAtMost(10))
 		chunk, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("llo "), chunk)
@@ -354,7 +354,7 @@ func TestWithErrorHandlerOnCASBuffersToChunkReader(t *testing.T) {
 		// already written is not a problem.
 		r := buffer.WithErrorHandler(b1, errorHandler).ToChunkReader(
 			/* offset = */ 4,
-			/* chunk size = */ 3)
+			buffer.ChunkSizeAtMost(3))
 		chunk, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("o "), chunk)
@@ -393,7 +393,7 @@ func TestWithErrorHandlerOnCASBuffersToChunkReader(t *testing.T) {
 		// stream.
 		r := buffer.WithErrorHandler(b1, errorHandler).ToChunkReader(
 			/* offset = */ 0,
-			/* chunk size = */ 1000)
+			buffer.ChunkSizeAtMost(1000))
 		chunk, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("Xyzzy "), chunk)

@@ -3,9 +3,14 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "blake3zcc_blob_hasher.go",
+        "blake3zcc_manifest.go",
+        "blake3zcc_manifest_hasher.go",
+        "blake3zcc_manifest_parser.go",
         "configuration.go",
         "digest.go",
         "existence_cache.go",
+        "manifest_parser.go",
         "set.go",
         "set_builder.go",
     ],
@@ -13,6 +18,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/clock:go_default_library",
+        "//pkg/digest/blake3zcc:go_default_library",
         "//pkg/eviction:go_default_library",
         "//pkg/proto/configuration/digest:go_default_library",
         "//pkg/util:go_default_library",
@@ -26,6 +32,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "blake3zcc_manifest_parser_test.go",
         "digest_test.go",
         "existence_cache_test.go",
         "set_builder_test.go",

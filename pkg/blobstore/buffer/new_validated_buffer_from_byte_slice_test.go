@@ -114,7 +114,7 @@ func TestNewValidatedBufferFromByteSliceToChunkReader(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		r := buffer.NewValidatedBufferFromByteSlice([]byte("Hello")).ToChunkReader(
 			/* offset = */ 1,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 
 		data, err := r.Read()
 		require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestNewValidatedBufferFromByteSliceToChunkReader(t *testing.T) {
 		// return an end-of-file immediately.
 		r := buffer.NewValidatedBufferFromByteSlice([]byte("Hello")).ToChunkReader(
 			/* offset = */ 5,
-			/* chunk size = */ 2)
+			buffer.ChunkSizeAtMost(2))
 		_, err := r.Read()
 		require.Equal(t, io.EOF, err)
 		r.Close()
@@ -147,7 +147,7 @@ func TestNewValidatedBufferFromByteSliceToChunkReader(t *testing.T) {
 	t.Run("NegativeOffset", func(t *testing.T) {
 		r := buffer.NewValidatedBufferFromByteSlice([]byte("Hello")).ToChunkReader(
 			/* offset = */ -123,
-			/* chunk size = */ 1024)
+			buffer.ChunkSizeAtMost(1024))
 
 		_, err := r.Read()
 		require.Equal(t, status.Error(codes.InvalidArgument, "Negative read offset: -123"), err)
@@ -158,7 +158,7 @@ func TestNewValidatedBufferFromByteSliceToChunkReader(t *testing.T) {
 	t.Run("TooFar", func(t *testing.T) {
 		r := buffer.NewValidatedBufferFromByteSlice([]byte("Hello")).ToChunkReader(
 			/* offset = */ 6,
-			/* chunk size = */ 1024)
+			buffer.ChunkSizeAtMost(1024))
 
 		_, err := r.Read()
 		require.Equal(t, status.Error(codes.InvalidArgument, "Buffer is 5 bytes in size, while a read at offset 6 was requested"), err)

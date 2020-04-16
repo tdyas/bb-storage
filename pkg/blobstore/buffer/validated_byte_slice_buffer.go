@@ -60,7 +60,7 @@ func (b validatedByteSliceBuffer) ReadAt(p []byte, off int64) (int, error) {
 	if off < 0 {
 		return 0, status.Errorf(codes.InvalidArgument, "Negative read offset: %d", off)
 	}
-	if off > int64(len(b.data)) {
+	if off >= int64(len(b.data)) {
 		return 0, io.EOF
 	}
 	n := copy(p, b.data[off:])
@@ -81,8 +81,8 @@ func (b validatedByteSliceBuffer) ToByteSlice(maximumSizeBytes int) ([]byte, err
 	return b.data, nil
 }
 
-func (b validatedByteSliceBuffer) ToChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
-	return b.toUnvalidatedChunkReader(off, maximumChunkSizeBytes)
+func (b validatedByteSliceBuffer) ToChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
+	return b.toUnvalidatedChunkReader(off, chunkPolicy)
 }
 
 func (b validatedByteSliceBuffer) ToReader() io.ReadCloser {
@@ -106,14 +106,15 @@ func (b validatedByteSliceBuffer) applyErrorHandler(errorHandler ErrorHandler) (
 	return b, false
 }
 
-func (b validatedByteSliceBuffer) toUnvalidatedChunkReader(off int64, maximumChunkSizeBytes int) ChunkReader {
+func (b validatedByteSliceBuffer) toUnvalidatedChunkReader(off int64, chunkPolicy ChunkPolicy) ChunkReader {
 	if err := validateReaderOffset(int64(len(b.data)), off); err != nil {
 		return newErrorChunkReader(err)
 	}
-	return &byteSliceChunkReader{
-		maximumChunkSizeBytes: maximumChunkSizeBytes,
-		data:                  b.data[off:],
-	}
+	return newNormalizingChunkReader(
+		&byteSliceChunkReader{
+			data: b.data[off:],
+		},
+		chunkPolicy)
 }
 
 func (b validatedByteSliceBuffer) toUnvalidatedReader(off int64) io.ReadCloser {
@@ -124,24 +125,18 @@ func (b validatedByteSliceBuffer) toUnvalidatedReader(off int64) io.ReadCloser {
 }
 
 type byteSliceChunkReader struct {
-	maximumChunkSizeBytes int
-	data                  []byte
+	data []byte
 }
 
 func (r *byteSliceChunkReader) Read() ([]byte, error) {
 	data := r.data
 	if len(data) == 0 {
-		// No more data to return.
+		// Successive read attempts: no data available.
 		return nil, io.EOF
 	}
-	if len(data) <= r.maximumChunkSizeBytes {
-		// Last chunk of data to be returned.
-		r.data = nil
-		return data, nil
-	}
-	// Full chunk of data still available.
-	r.data = r.data[r.maximumChunkSizeBytes:]
-	return data[:r.maximumChunkSizeBytes], nil
+	// First read attempt: return all data.
+	r.data = nil
+	return data, nil
 }
 
 func (r *byteSliceChunkReader) Close() {}

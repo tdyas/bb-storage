@@ -1,0 +1,64 @@
+diff --git build/bazel/remote/execution/v2/remote_execution.proto build/bazel/remote/execution/v2/remote_execution.proto
+index efbf513..bf08873 100644
+--- build/bazel/remote/execution/v2/remote_execution.proto
++++ build/bazel/remote/execution/v2/remote_execution.proto
+@@ -777,12 +777,27 @@ message SymlinkNode {
+ // serializing, but care should be taken to avoid shortcuts. For instance,
+ // concatenating two messages to merge them may produce duplicate fields.
+ message Digest {
+-  // The hash. In the case of SHA-256, it will always be a lowercase hex string
+-  // exactly 64 characters long.
+-  string hash = 1;
++  // The hash in case BLAKE3ZCC is not used. In the case of SHA-256, it
++  // will always be a lowercase hex string exactly 64 characters long.
++  //
++  // This field is mutually exclusive with the other hash_* fields.
++  // Ideally, these fields be placed in a 'oneof'.  Unfortunately, this
++  // does not yield consistent serialization across implementations.
++  //
++  // https://github.com/golang/protobuf/issues/395
++  string hash_other = 1;
+ 
+   // The size of the blob, in bytes.
+   int64 size_bytes = 2;
++
++  // The hash, in case BLAKE3ZCC is used. Because BLAKE3ZCC uses an
++  // extendable-output function (XOF), this field may be of variable
++  // length.
++  bytes hash_blake3zcc = 3;
++
++  // Buildbarn extension: The hash, in case the blob is a BLAKE3ZCC
++  // manifest object.
++  bytes hash_blake3zcc_manifest = 42;
+ }
+ 
+ // ExecutedActionMetadata contains details about a completed execution.
+@@ -1485,6 +1500,28 @@ message DigestFunction {
+ 
+     // The SHA-512 digest function.
+     SHA512 = 6;
++
++    // A modified version of the BLAKE3 digest function, called
++    // BLAKE3ZCC. This hashing algorithm is identical to BLAKE3 (see
++    // https://github.com/BLAKE3-team/BLAKE3), except that all chunks
++    // (leaf nodes in the Merkle tree) are hased using a Chunk Counter
++    // of zero. ZCC stands for Zero Chunk Counter.
++    //
++    // The reason why this change is made over regular BLAKE3 is that it
++    // permits large files to be decomposed into smaller blobs that are
++    // stored in the CAS individually. These individual blobs can be
++    // hashed with BLAKE3ZCC as well.
++    //
++    // Because BLAKE3 uses an extendable-output function (XOF), hashes
++    // may be the same length as any of the digest functions above. To
++    // be able to distinguish the digest function used,
++    // [Digest][build.bazel.remote.execution.v2.Digest]
++    // contains a custom field to store hashes of this kind. For calls
++    // against the ByteStream API, hashes are converted to lowercase
++    // hexadecimal strings, having prefix "B3Z:".
++    //
++    // Servers should support hashes between 16 and 128 bytes in size.
++    BLAKE3ZCC = 7;
+   }
+ }
+ 

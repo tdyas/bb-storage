@@ -41,7 +41,7 @@ func TestNewBufferFromErrorToByteSlice(t *testing.T) {
 func TestNewBufferFromErrorToChunkReader(t *testing.T) {
 	r := buffer.NewBufferFromError(status.Error(codes.Internal, "I/O error")).ToChunkReader(
 		/* offset = */ 12,
-		/* chunk size = */ 10)
+		buffer.ChunkSizeAtMost(10))
 
 	_, err := r.Read()
 	require.Equal(t, status.Error(codes.Internal, "I/O error"), err)

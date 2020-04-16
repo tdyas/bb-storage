@@ -29,7 +29,7 @@ func TestDemultiplexingBuildQueueBadInstanceName(t *testing.T) {
 	err = demultiplexingBuildQueue.Execute(&remoteexecution.ExecuteRequest{
 		InstanceName: "Hello|World",
 		ActionDigest: &remoteexecution.Digest{
-			Hash:      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			HashOther: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			SizeBytes: 0,
 		},
 	}, executeServer)
@@ -59,7 +59,7 @@ func TestDemultiplexingBuildQueueFailedToGetBackend(t *testing.T) {
 	err = demultiplexingBuildQueue.Execute(&remoteexecution.ExecuteRequest{
 		InstanceName: "Nonexistent backend",
 		ActionDigest: &remoteexecution.Digest{
-			Hash:      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			HashOther: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			SizeBytes: 0,
 		},
 	}, executeServer)

@@ -28,15 +28,15 @@ func TestContentAddressableStorageServerBatchReadBlobsSuccess(t *testing.T) {
 	request := &remoteexecution.BatchReadBlobsRequest{
 		Digests: []*remoteexecution.Digest{
 			{
-				Hash:      "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
+				HashOther: "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
 				SizeBytes: 123,
 			},
 			{
-				Hash:      "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
+				HashOther: "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
 				SizeBytes: 234,
 			},
 			{
-				Hash:      "7821919ee052d21515cf4e36788138a301c18c36931290270aece8d79ea2cca6",
+				HashOther: "7821919ee052d21515cf4e36788138a301c18c36931290270aece8d79ea2cca6",
 				SizeBytes: 345,
 			},
 		},
@@ -62,21 +62,21 @@ func TestContentAddressableStorageServerBatchReadBlobsSuccess(t *testing.T) {
 		Responses: []*remoteexecution.BatchReadBlobsResponse_Response{
 			{
 				Digest: &remoteexecution.Digest{
-					Hash:      "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
+					HashOther: "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
 					SizeBytes: 123,
 				},
 				Data: a,
 			},
 			{
 				Digest: &remoteexecution.Digest{
-					Hash:      "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
+					HashOther: "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
 					SizeBytes: 234,
 				},
 				Data: b,
 			},
 			{
 				Digest: &remoteexecution.Digest{
-					Hash:      "7821919ee052d21515cf4e36788138a301c18c36931290270aece8d79ea2cca6",
+					HashOther: "7821919ee052d21515cf4e36788138a301c18c36931290270aece8d79ea2cca6",
 					SizeBytes: 345,
 				},
 				Status: &status_pb.Status{
@@ -95,11 +95,11 @@ func TestContentAddressableStorageServerBatchReadBlobsFailure(t *testing.T) {
 	request := &remoteexecution.BatchReadBlobsRequest{
 		Digests: []*remoteexecution.Digest{
 			{
-				Hash:      "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
+				HashOther: "409a7f83ac6b31dc8c77e3ec18038f209bd2f545e0f4177c2e2381aa4e067b49",
 				SizeBytes: 123,
 			},
 			{
-				Hash:      "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
+				HashOther: "0479688f99e8cbc70291ce272876ff8e0db71a0889daf2752884b0996056b4a0",
 				SizeBytes: 234,
 			},
 		},

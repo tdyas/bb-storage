@@ -13,7 +13,7 @@ var (
 			{
 				Path: "bazel-out/k8-fastbuild/bin/packages/epstopdf-base_test.pdf",
 				Digest: &remoteexecution.Digest{
-					Hash:      "38cadb06fb6e4ae5d0bae39e0b8a8f0c14086c35ac2eb1e144f97fc4745a5386",
+					HashOther: "38cadb06fb6e4ae5d0bae39e0b8a8f0c14086c35ac2eb1e144f97fc4745a5386",
 					SizeBytes: 4868,
 				},
 			},

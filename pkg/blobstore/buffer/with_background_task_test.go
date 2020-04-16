@@ -49,7 +49,7 @@ func TestWithBackgroundTaskToChunkReader(t *testing.T) {
 		b, task := buffer.WithBackgroundTask(buffer.NewValidatedBufferFromByteSlice([]byte("Hello, world")))
 		task.Finish(nil)
 
-		r := b.ToChunkReader(0, 5)
+		r := b.ToChunkReader(0, buffer.ChunkSizeAtMost(5))
 		data, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("Hello"), data)
@@ -73,7 +73,7 @@ func TestWithBackgroundTaskToChunkReader(t *testing.T) {
 		// Because ChunkReader.Close() does not return any
 		// errors, the io.EOF should be replaced with the error
 		// of the background task.
-		r := b.ToChunkReader(0, 5)
+		r := b.ToChunkReader(0, buffer.ChunkSizeAtMost(5))
 		data, err := r.Read()
 		require.NoError(t, err)
 		require.Equal(t, []byte("Hello"), data)

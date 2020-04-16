@@ -42,6 +42,7 @@ gomock(
         "ChunkReader",
         "ErrorHandler",
         "RepairFunc",
+        "SmallBufferFetcher",
     ],
     library = "//pkg/blobstore/buffer:go_default_library",
     package = "mock",
