@@ -83,6 +83,13 @@ def go_dependencies():
         version = "v0.1.3",
     )
     go_repository(
+        name = "com_github_square_go_jose",
+        importpath = "gopkg.in/square/go-jose.v2",
+        version = "v2.5.1",
+        sum = "h1:7odma5RETjNHWJnR32wx8t+Io4djHE1PqxCFx3iiZ2w=",
+    )
+
+    go_repository(
         name = "com_github_stretchr_testify",
         importpath = "github.com/stretchr/testify",
         sum = "h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=",
@@ -124,6 +131,12 @@ def go_dependencies():
         sum = "h1:Q2Pp6v3QYiocMxomCaJuwQGFt7E53bPYqEgug/AoBtY=",
         version = "v2.16.0+incompatible",
     )
+    go_repository(
+        name = "org_golang_x_crypto",
+        importpath = "golang.org/x/crypto",
+        commit = "227b76d455e7",
+    )
+
     go_repository(
         name = "org_golang_x_sync",
         importpath = "golang.org/x/sync",

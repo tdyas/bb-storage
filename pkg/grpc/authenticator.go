@@ -3,9 +3,12 @@ package grpc
 import (
 	"context"
 	"crypto/x509"
+	"io/ioutil"
+	"os"
 
 	"github.com/buildbarn/bb-storage/pkg/clock"
 	configuration "github.com/buildbarn/bb-storage/pkg/proto/configuration/grpc"
+	"github.com/buildbarn/bb-storage/pkg/util"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -48,6 +51,48 @@ func NewAuthenticatorFromConfiguration(policy *configuration.AuthenticationPolic
 		return NewTLSClientCertificateAuthenticator(
 			clientCAs,
 			clock.SystemClock), nil
+	case *configuration.AuthenticationPolicy_Jwt:
+		var jwtKeys []JWTKeyConfig
+		for _, keyConfig := range policyKind.Jwt.Key {
+			var key interface{}
+
+			if keyConfig.KeyContent != "" && keyConfig.KeyFile != "" {
+				return nil, status.Error(codes.InvalidArgument, "key_content and key_file are mutually exclusive")
+			}
+
+			if keyConfig.KeyContent != "" {
+				k, err := loadJWTPublicKey([]byte(keyConfig.KeyContent))
+				if err != nil {
+					return nil, status.Error(codes.InvalidArgument, "Failed to parse JWT public key from string")
+				}
+				key = k
+			} else if keyConfig.KeyFile != "" {
+				f, err := os.Open(keyConfig.KeyFile)
+				if err != nil {
+					return nil, util.StatusWrapWithCode(err, codes.InvalidArgument, "failed to open key file")
+				}
+				defer f.Close()
+
+				data, err := ioutil.ReadAll(f)
+				if err != nil {
+					return nil, util.StatusWrapWithCode(err, codes.InvalidArgument, "failed to read key file")
+				}
+
+				k, err := loadJWTPublicKey(data)
+				if err != nil {
+					return nil, status.Error(codes.InvalidArgument, "Failed to parse JWT public key from string")
+				}
+				key = k
+			} else {
+				return nil, status.Error(codes.InvalidArgument, "one of eiher key_content or key_file must be set")
+			}
+
+			jwtKey := JWTKeyConfig{
+				Key: key,
+			}
+			jwtKeys = append(jwtKeys, jwtKey)
+		}
+		return NewJWTAuthenticator(jwtKeys, clock.SystemClock), nil
 	default:
 		return nil, status.Error(codes.InvalidArgument, "Configuration did not contain an authentication policy type")
 	}
