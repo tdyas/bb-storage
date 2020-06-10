@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -35,12 +34,14 @@ func loadJSONWebKey(json []byte, pub bool) (*jose.JSONWebKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !jwk.Valid() {
-		return nil, errors.New("invalid JWK key")
-	}
-	if jwk.IsPublic() != pub {
-		return nil, errors.New("priv/pub JWK key mismatch")
-	}
+	// Commenting out due to issue with .Valid returning false on symmetric keys:
+	// https://github.com/square/go-jose/issues/314
+	// if !jwk.Valid() {
+	// 	return nil, errors.New("invalid JWK key")
+	// }
+	// if jwk.IsPublic() != pub {
+	// 	return nil, errors.New("priv/pub JWK key mismatch")
+	// }
 	return &jwk, nil
 }
 
