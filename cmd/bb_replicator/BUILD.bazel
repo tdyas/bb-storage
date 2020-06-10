@@ -1,4 +1,4 @@
-load("//tools:container.bzl", "container_push_official")
+load("//tools:container.bzl", "container_push_toolchain")
 load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
@@ -33,7 +33,7 @@ go_image(
     visibility = ["//visibility:public"],
 )
 
-container_push_official(
+container_push_toolchain(
     name = "bb_replicator_container_push",
     component = "bb-replicator",
     image = ":bb_replicator_container",
