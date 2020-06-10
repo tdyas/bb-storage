@@ -80,7 +80,7 @@ func NewAuthenticatorFromConfiguration(policy *configuration.AuthenticationPolic
 
 				k, err := loadJWTPublicKey(data)
 				if err != nil {
-					return nil, status.Error(codes.InvalidArgument, "Failed to parse JWT public key from string")
+					return nil, util.StatusWrapWithCode(err, codes.InvalidArgument, "Failed to parse JWT public key from file")
 				}
 				key = k
 			} else {
