@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/buildbarn/bb-storage/pkg/clock"
@@ -88,6 +89,7 @@ func (a *jwtAuthenticator) Authenticate(ctx context.Context) error {
 	// Get the gRPC metadata.
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
+		log.Print("JWT: Failed auth: Unable to extract metadata. (Connection was not established using gRPC.)")
 		return status.Error(codes.Unauthenticated, "Connection was not established using gRPC")
 	}
 
@@ -96,14 +98,17 @@ func (a *jwtAuthenticator) Authenticate(ctx context.Context) error {
 	//       https://godoc.org/google.golang.org/grpc/metadata#New
 	authHeader, ok := md["authorization"]
 	if !ok || len(authHeader) < 1 {
+		log.Print("JWT: Failed auth: Unable to extract `authorization` header.")
 		return status.Error(codes.Unauthenticated, "authorization required")
 	}
 
 	if len(authHeader) > 1 {
+		log.Print("JWT: Failed auth: Multiple authorization headers are not supported.")
 		return status.Error(codes.Unauthenticated, "multiple authorization headers are not supported")
 	}
 
 	if !strings.HasPrefix(authHeader[0], "Bearer ") {
+		log.Print("JWT: Failed auth: Token does not start with `Bearer `.")
 		return status.Error(codes.Unauthenticated, "authorization required")
 	}
 
@@ -111,6 +116,7 @@ func (a *jwtAuthenticator) Authenticate(ctx context.Context) error {
 
 	tok, err := jwt.ParseSigned(jwtString)
 	if err != nil {
+		log.Printf("JWT: Failed auth: JWT failed to parse: %s", err)
 		return util.StatusWrapWithCode(err, codes.Unauthenticated, "authorization required")
 	}
 
@@ -128,10 +134,12 @@ func (a *jwtAuthenticator) Authenticate(ctx context.Context) error {
 			if err == nil {
 				return nil
 			} else {
-				break
+				log.Printf("JWT: Failed auth (will try next key): Failed to validate JWT claims: %s", err)
+				continue
 			}
 		}
 	}
 
+	log.Printf("JWT: Failed auth: No keys accepted JWT, last error: %s", err)
 	return status.Error(codes.Unauthenticated, "authorization required")
 }

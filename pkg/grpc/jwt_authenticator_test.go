@@ -124,6 +124,63 @@ func TestJWTAuthenticator(t *testing.T) {
 	})
 }
 
+func TestJWTAuthenticatorMultipleKeys(t *testing.T) {
+	ctrl, ctx := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+	clock := mock.NewMockClock(ctrl)
+
+	symmetricKey1 := []byte("0123456789ABCDEF")
+	symmetricKey2 := []byte("ABCDEF0123456789")
+
+	jwtKeys := []bb_grpc.JWTKeyConfig{
+		{
+			Key: symmetricKey1,
+		},
+		{
+			Key: symmetricKey2,
+		},
+	}
+
+	signer1 := mustMakeSigner(jose.HS256, symmetricKey1)
+	signer2 := mustMakeSigner(jose.HS256, symmetricKey2)
+
+	authenticator := bb_grpc.NewJWTAuthenticator(jwtKeys, clock)
+
+	t.Run("ParsesAndValidateValidJWS_Key1", func(t *testing.T) {
+		// Should parse and validate a valid JWS.
+		clock.EXPECT().Now().Return(time.Unix(1600000000, 0))
+		tok, err := jwt.Signed(signer1).
+			Claims(&jwt.Claims{
+				Issuer:  "buildbarn",
+				Subject: "subject",
+			}).CompactSerialize()
+		require.NoError(t, err, "Error creating JWT.")
+
+		md := metadata.Pairs("authorization", fmt.Sprintf("Bearer %s", tok))
+		require.NoError(
+			t,
+			authenticator.Authenticate(metadata.NewIncomingContext(ctx, md)),
+		)
+	})
+
+	t.Run("ParsesAndValidateValidJWS_Key2", func(t *testing.T) {
+		// Should parse and validate a valid JWS.
+		clock.EXPECT().Now().Return(time.Unix(1600000000, 0))
+		tok, err := jwt.Signed(signer2).
+			Claims(&jwt.Claims{
+				Issuer:  "buildbarn",
+				Subject: "subject",
+			}).CompactSerialize()
+		require.NoError(t, err, "Error creating JWT.")
+
+		md := metadata.Pairs("authorization", fmt.Sprintf("Bearer %s", tok))
+		require.NoError(
+			t,
+			authenticator.Authenticate(metadata.NewIncomingContext(ctx, md)),
+		)
+	})
+}
+
 func mustMakeSigner(alg jose.SignatureAlgorithm, k interface{}) jose.Signer {
 	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: alg, Key: k}, (&jose.SignerOptions{}).WithType("JWT"))
 	if err != nil {
